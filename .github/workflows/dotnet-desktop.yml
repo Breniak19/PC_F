@@ -1,0 +1,48 @@
+name: Compilar y Publicar PC_F
+
+on:
+  push:
+    branches: [ "master", "main" ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Descargar el código
+      uses: actions/checkout@v4
+
+    - name: Configurar .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Compilar PC_F
+      run: dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained false -o ./publish_output
+
+    - name: Crear archivo ZIP con los Drivers
+      # Comprime el .exe junto con el .dll y .sys de WinRing0 que estarán en la carpeta de salida
+      run: Compress-Archive -Path ./publish_output/* -DestinationPath ./PCF_Motor_v2.0.${{ github.run_number }}.zip
+
+    - name: Crear Tag y Lanzamiento
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v2.0.${{ github.run_number }}
+        name: PC_F (Motor Hardware) v2.0.${{ github.run_number }}
+        body: |
+          ⚡ **Nueva versión de PC_F (PlusControl Force) compilada automáticamente.**
+          
+          - Motor de bajo nivel en Anillo 0.
+          - Control absoluto de MSR (Undervolt, Multiplicador, Turbo Boost).
+          - Servidor Named Pipes integrado para recibir órdenes remotas.
+          
+          ⚠️ **Instalación:** Descarga el archivo `.zip`, extráelo, y ejecuta `PC_F.exe` como Administrador para que pueda cargar el driver `WinRing0`.
+        draft: false
+        prerelease: false
+        files: |
+          ./publish_output/PC_F.exe
+          ./PCF_Motor_v2.0.${{ github.run_number }}.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
